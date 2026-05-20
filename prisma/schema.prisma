@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "./generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Users {
+  id        Int    @id @default(autoincrement()) // Clé primaire auto-incrémentée
+  email     String @unique @db.VarChar(50) // Email unique (max 50 caractères)
+  password  String @db.VarChar(255) // Mot de passe hashé @map(nom différent en DB)
+  firstName String @db.VarChar(50) // Prénom utilisateur (max 50 caractères)
+  lastName  String @db.VarChar(50) // Nom utilisateur (max 50 caractères)
+
+  createdAt    DateTime      @default(now()) // Date de création automatique à l'instant T avec now()
+  updatedAt    DateTime      @updatedAt // Date mise à jour auto à chaque modification (nom différent dans la DB)
+  articles     Articles[]
+  comments     Comments[]
+  likeArticles LikeArticle[]
+  likeComments LikeComment[]
+  manages      Manages[]
+  notifies     Notifies[]
+}
+
+model Clubs {
+  id            Int    @id @default(autoincrement())
+  name          String @unique @db.VarChar(50) // @unique (nom unique)
+  logo          String @db.VarChar(255) // Photo du club
+  acronyme      String @db.VarChar(5) // Acronyme du club
+  creationDate  String @db.VarChar(5) // Année de création du club
+  presidentName String @db.VarChar(50) // Président du club
+  trainerName   String @db.VarChar(50) // Entraineur
+  rna           String @db.VarChar(11) // Numéro du club
+
+  // tableau des clubs pour article
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles    Articles[]
+  matchesHome Matches[]  @relation("MatchesHome")
+  matchesAway Matches[]  @relation("MatchesAway")
+  manages     Manages[]
+}
+
+enum ManageRoleEnum {
+  Manager
+  CM
+}
+
+model Manages {
+  userId    Int            @map("user_id")
+  clubId    Int            @map("club_id")
+  role      ManageRoleEnum
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  users Users @relation(fields: [userId], references: [id])
+  clubs Clubs @relation(fields: [clubId], references: [id])
+
+  @@id([userId, clubId])
+}
+
+//Type de notification
+enum NotificationTypeEnum {
+  ARTICLE
+  MATCH
+  COMMENT
+}
+
+model Notifications {
+  id           Int                  @id @default(autoincrement())
+  text         String               @db.Text
+  relationType NotificationTypeEnum //// Type de l'objet lié à la notification (article, match ou commentaire)
+  relationId   Int // ID de l'objet lié (ex: id de l'article, du match ou du commentaire)
+  metadata     Json // Données supplémentaires au format JSON (libre, ex: infos user, action, etc.)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  notifies  Notifies[]
+}
+
+model Notifies {
+  userId         Int
+  notificationId Int
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  users         Users         @relation(fields: [userId], references: [id])
+  notifications Notifications @relation(fields: [notificationId], references: [id])
+
+  @@id([userId, notificationId])
+}
+
+model Articles {
+  id          Int    @id @default(autoincrement())
+  clubId      Int
+  userId      Int
+  title       String @db.VarChar(50)
+  description String @db.Text
+  image       String @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign Key avec users / clubs
+  clubs Clubs @relation(fields: [clubId], references: [id])
+  users Users @relation(fields: [userId], references: [id])
+
+  // Tableau Comments
+  articleComment Comments[]
+  likeArticles   LikeArticle[]
+
+  // Index pour article
+  @@index([userId])
+  @@index([userId, clubId])
+}
+
+model Comments {
+  id        Int    @id @default(autoincrement())
+  userId    Int
+  articleId Int
+  text      String @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  //Foreign key users / articles
+  users        Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articles     Articles      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  likeComments LikeComment[]
+
+  @@index([userId, articleId])
+}
+
+model Matches {
+  id            Int      @id @default(autoincrement())
+  clubHomeId    Int
+  clubAwayId    Int
+  startDate     DateTime
+  endDate       DateTime
+  matchAddress  String   @db.VarChar(255)
+  scoreTeamHome Int
+  scoreTeamAway Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clubHome Clubs @relation("MatchesHome", fields: [clubHomeId], references: [id])
+  clubAway Clubs @relation("MatchesAway", fields: [clubAwayId], references: [id])
+
+  @@index([clubHomeId, clubAwayId])
+}
+
+model LikeArticle {
+  userId    Int
+  articleId Int
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  users    Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articles Articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  // Clé primaire composée
+  @@id([userId, articleId])
+}
+
+model LikeComment {
+  userId    Int
+  commentId Int
+
+  createdAt DateTime @default(now())
+
+  users    Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comments @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, commentId])
+}

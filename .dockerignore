@@ -1,0 +1,36 @@
+# Ignore le dossier node_modules du PC
+# Les dépendances seront installées directement dans Docker
+# Évite les conflits Windows/Linux et réduit la taille du build
+node_modules
+
+# Ignore les fichiers de logs npm
+# Fichiers inutiles générés en cas d'erreur npm
+npm-debug.log
+
+# Ignore le dossier Git
+# Évite d'envoyer tout l'historique Git dans l'image Docker
+.git
+
+# Ignore le fichier gitignore
+# Inutile dans l'image finale
+.gitignore
+
+# Ignore le README
+# Documentation inutile dans le conteneur Docker
+README.md
+
+# Ignore les variables d'environnement locales
+# Évite d'envoyer des secrets ou configs locales dans Docker
+.env.local
+
+# Ignore les fichiers système macOS
+# Fichier automatique inutile sur Linux/Docker
+.DS_Store
+
+# Ignore le dossier dist local
+# Le build sera recréé directement dans Docker
+dist
+
+# Ignore le dossier build local
+# Évite de copier des anciens builds dans l'image Docker
+build
