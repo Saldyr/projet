@@ -13,6 +13,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { isEmptyBody } from 'src/common/utils/is-empty-body.util';
 import { ClubsService } from './clubs.service';
 import { CreateClubDto } from './dto/create-club.dto';
 import { UpdateClubDto } from './dto/update-club.dto';
@@ -41,7 +42,7 @@ export class ClubsController {
     try {
       return await this.clubsService.findOne(id);
     } catch (error) {
-      throw new NotFoundException();
+      throw new NotFoundException('Club introuvable');
     }
   }
 
@@ -51,29 +52,27 @@ export class ClubsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateClubDto,
   ): Promise<void> {
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
 
-    // Vérifie si le body est vide
-    if (!body || JSON.stringify(body).trim() === '{}')
-      throw new BadRequestException();
-
-    // Vérifie si le club existe en base de données
+    // Vérifie que le club existe avant modification.
     if (!(await this.clubsService.countOneById(id))) {
-      throw new NotFoundException();
+      throw new NotFoundException('Club introuvable');
     }
 
-    // Mise à jour du club
+    // Met à jour le club.
     await this.clubsService.update(id, body);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-
-    // Vérifie si le club existe avant suppression
+    // Vérifie que le club existe avant suppression.
     if (!(await this.clubsService.countOneById(id)))
-      throw new NotFoundException();
+      throw new NotFoundException('Club introuvable');
 
-    // Suppression du club
+    // Supprime le club.
     await this.clubsService.remove(id);
   }
 }

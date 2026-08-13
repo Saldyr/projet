@@ -1,4 +1,3 @@
-
 import {
   CanActivate,
   ExecutionContext,
@@ -14,28 +13,31 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request: Request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request);
+    const token = this._extractTokenFromHeader(request);
     if (!token) {
       throw new UnauthorizedException();
     }
     try {
-      // 💡 Here the JWT secret key that's used for verifying the payload 
+      // 💡 Here the JWT secret key that's used for verifying the payload
       // is the key that was passed in the JwtModule
-      const payload = await this.jwtService.verifyAsync(token);
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_ACCESS_SECRET,
+      });
       // 💡 We're assigning the payload to the request object here
       // so that we can access it in our route handlers
 
-    //   request.user = payload
-      request['userId'] = payload.sub
-
+      //   request.user = payload
+      request['userId'] = payload.sub;
     } catch {
       throw new UnauthorizedException();
     }
     return true;
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
+  private _extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
     return type === 'Bearer' ? token : undefined;
   }
 }
+
+//verifyTokenOrThrow(token, secret: process.env.JWT_REFRESH_SECRET);

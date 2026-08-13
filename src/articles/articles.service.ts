@@ -67,14 +67,6 @@ export class ArticlesService {
     });
   }
 
-
-  // async findByClub(id: number): Promise<Omit<Articles,'userId'>>{
-  //   return await this.prisma.clubs.findUniqueOrThrow({
-  //     where: {id}
-  //   })
-  // }
-
-
   async update(id: number, body: UpdateArticleDto): Promise<void> {
     await this.prisma.articles.update({ where: { id }, data: body });
     // Met à jour un article en base de données

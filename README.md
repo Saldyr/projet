@@ -1,98 +1,172 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sportify — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST de la plateforme Sportify. Gère l'authentification, les utilisateurs, les matchs, les clubs, les publications et les interactions (likes, notifications).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+| Technologie | Usage |
+|-------------|-------|
+| NestJS 11 | Framework API |
+| Prisma 7 + adapter MariaDB | ORM et migrations |
+| Passport + JWT | Authentification |
+| bcrypt | Hash des mots de passe |
+| class-validator | Validation des DTO |
+| Jest + Supertest | Tests |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Prérequis
 
-## Project setup
+- Node.js 24+
+- MariaDB / MySQL (port **3310** en local)
+- Base `sportify` créée
+
+## Installation
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env   # adapter DATABASE_URL et secrets JWT
+npx prisma generate
+npx prisma migrate deploy
 ```
 
-## Compile and run the project
+### Variables d'environnement
+
+| Variable | Description | Exemple |
+|----------|-------------|---------|
+| `DATABASE_URL` | Connexion MariaDB/MySQL | `mysql://root:pass@localhost:3310/sportify` |
+| `PORT` | Port de l'API | `3000` |
+| `JWT_ACCESS_SECRET` | Secret access token | — |
+| `JWT_REFRESH_SECRET` | Secret refresh token | — |
+| `JWT_ALGO` | Algorithme JWT | `HS256` |
+| `JWT_ACCESS_EXP` | Durée access token | `1d` |
+| `JWT_REFRESH_EXP` | Durée refresh token | `7d` |
+| `JWT_REFRESH_MAX_AGE` | Durée cookie refresh (jours) | `7` |
+| `SALT` | Rounds bcrypt | `10` |
+
+## Lancement
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev    # développement avec watch
+npm run start        # sans watch
+npm run build        # compilation
+npm run start:prod   # production (après build)
 ```
 
-## Run tests
+API sur **http://localhost:3000** — CORS autorisé pour `http://localhost:5173` avec `credentials: true`.
+
+## Structure du projet
+
+```
+src/
+├── auth/               # Register, login, refresh, logout (JWT + cookie)
+├── users/              # Profil, mise à jour, suppression compte
+├── matches/            # CRUD matchs + règles métier
+├── clubs/              # CRUD clubs
+├── articles/           # Publications
+├── comments/           # Commentaires
+├── notifications/      # Notifications
+├── notifies/           # Liaison user ↔ notification
+├── manages/            # Rôles Manager / CM par club
+├── likearticle/        # Likes articles
+├── likecomment/        # Likes commentaires
+├── hash/               # Service bcrypt
+├── tokens/             # Refresh tokens en BDD
+└── common/             # Utilitaires partagés
+
+prisma/
+├── schema.prisma       # Modèles de données
+├── migrations/         # Historique des migrations
+├── generated/prisma/   # Client Prisma généré
+└── prisma.service.ts   # Service injectable NestJS
+```
+
+## Modèles Prisma
+
+| Modèle | Description |
+|--------|-------------|
+| `Users` | Comptes utilisateurs |
+| `Clubs` | Clubs sportifs |
+| `Matches` | Matchs (avec `userId` créateur) |
+| `Articles` | Publications liées à un club |
+| `Comments` | Commentaires sur articles |
+| `Notifications` / `Notifies` | Système de notifications |
+| `Manages` | Rôles manager / community manager |
+| `LikeArticle`, `LikeComment`, `LikeClub` | Favoris |
+| `Tokens` | Refresh tokens persistés |
+
+## Routes API
+
+Pas de préfixe `/api` — routes à la racine.
+
+### Auth — `/auth`
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| POST | `/auth/register` | Non | Inscription |
+| POST | `/auth/login` | Non | Connexion (access token + cookie refresh) |
+| POST | `/auth/refresh` | Cookie | Renouvellement du token |
+| POST | `/auth/logout` | Non | Déconnexion |
+
+### Users — `/users`
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| GET | `/users/profile` | Oui | Profil de l'utilisateur connecté |
+| PATCH | `/users/me` | Oui | Mise à jour du profil |
+| DELETE | `/users/me` | Oui | Suppression du compte |
+| GET | `/users/:id` | Oui | Détail utilisateur |
+
+### Matches — `/matches`
+
+| Méthode | Route | Auth | Description |
+|---------|-------|------|-------------|
+| GET | `/matches` | Non | Liste des matchs |
+| GET | `/matches/:id` | Non | Détail d'un match |
+| POST | `/matches` | Oui | Création (créateur = JWT) |
+| PATCH | `/matches/:id` | Oui | Modification (créateur uniquement) |
+| DELETE | `/matches/:id` | Oui | Suppression (créateur uniquement) |
+
+Autres modules : `/clubs`, `/articles`, `/comments`, `/notifications`, `/notifies`, `/manages`, `/likearticle`, `/likecomment`.
+
+## Prisma
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npx prisma generate          # régénérer le client
+npx prisma migrate deploy    # appliquer les migrations (recommandé)
+npx prisma migrate dev       # dev (peut demander un reset si historique modifié)
+npx prisma studio            # interface graphique BDD
 ```
 
-## Deployment
+### Migrations
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```
+prisma/migrations/
+├── 20260526114806_mig_sport_1/
+├── 20260527112624_canard/
+├── 20260528124945_merge_schema/
+├── 20260528125121_nullable_match_scores/
+├── 20260602113951_init/
+└── 20260608140000_add_match_user_id/   # ajout userId sur matches
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Tests
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run test         # tests unitaires
+npm run test:e2e     # tests end-to-end
+npm run test:cov     # couverture
+npm run lint         # ESLint
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Docker
 
-## Resources
+```bash
+docker build -t sportify-back .
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Image multi-stage Node 24, expose le port **3000**.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Dépôt
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```
+https://git.alt-tools.tech/gp_devclassico/sportify/back.git
+```

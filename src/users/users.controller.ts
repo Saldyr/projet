@@ -18,13 +18,25 @@ import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Users } from 'prisma/generated/prisma/client';
 import { AuthGuard } from 'src/auth/guards/auth.guard';
+import { isEmptyBody } from 'src/common/utils/is-empty-body.util';
 import type { RequestWithUser } from 'src/common/request.with.user.interface';
-
 
 @UseGuards(AuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('profile')
+  async findMyProfile(
+    @Req() request: RequestWithUser,
+  ): Promise<Omit<Users, 'password'>> {
+    try {
+      const id = request.userId;
+      return await this.usersService.findOneOrThrow(id);
+    } catch {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+  }
 
   @Get()
   async findAll(
@@ -33,55 +45,80 @@ export class UsersController {
     return await this.usersService.findAll(page);
   }
 
-  @UseGuards(AuthGuard)
-  @Get()
-  async findMyProfile(
-    @Req() request: RequestWithUser,
-  ): Promise<Omit<Users, 'password'>> {
-    try {
-      const id = request.userId;
-      return await this.usersService.findOneOrThrow(id);
-    } catch (error) {
-      throw new NotFoundException();
-    }
-  }
-
   @Get(':id')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<Omit<Users, 'password'>> {
     try {
       return await this.usersService.findOneOrThrow(id);
-    } catch (error) {
-      throw new NotFoundException();
+    } catch {
+      throw new NotFoundException('Utilisateur introuvable');
     }
   }
 
+  /*
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch(':id')
   async update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIntPipe) id: number, //Le userId est récupérer ici au lieu de l'URL
     @Body() body: UpdateUserDto,
   ): Promise<void> {
-    // Vérifier si le body est vide
-    if (!body || JSON.stringify(body).trim() === '{}')
-      throw new BadRequestException();
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
 
-    // On vérifie si l'user existe en DB
+    // Vérifie que l'utilisateur existe avant modification.
     if (!(await this.usersService.countOneById(id))) {
-      throw new NotFoundException();
+      throw new NotFoundException('Utilisateur introuvable');
     }
 
-    //on modifie l'user si on le retrouve qui se trouve dans le body
+    // Met à jour l'utilisateur.
+    await this.usersService.update(id, body);
+  }
+  */
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch('me')
+  async update(
+    @Req() request: RequestWithUser, //Le userId est récupérer ici au lieu de l'URL
+    @Body() body: UpdateUserDto,
+  ): Promise<void> {
+    const id = request.userId;
+
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
+
+    // Vérifie que l'utilisateur existe avant modification.
+    if (!(await this.usersService.countOneById(id))) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    // Met à jour l'utilisateur.
     await this.usersService.update(id, body);
   }
 
+  /*
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    // verif Id = user in Db
+    // Vérifie que l'utilisateur existe avant suppression.
     if (!(await this.usersService.countOneById(id)))
-      throw new NotFoundException();
+      throw new NotFoundException('Utilisateur introuvable');
+
+    await this.usersService.remove(id);
+  }
+  */
+
+  //User
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('me')
+  async removeMe(@Req() request: RequestWithUser): Promise<void> {
+    const id = request.userId;
+
+    if (!(await this.usersService.countOneById(id)))
+      throw new NotFoundException('Utilisateur introuvable');
+
     await this.usersService.remove(id);
   }
 }

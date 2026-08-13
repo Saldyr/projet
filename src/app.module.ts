@@ -12,10 +12,12 @@ import { NotifiesModule } from './notifies/notifies.module';
 import { LikearticleModule } from './likearticle/likearticle.module';
 import { LikecommentModule } from './likecomment/likecomment.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TokensServices } from './tokens/tokens.services';
+import { HashModule } from './hash/hash.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true }), // forRoot() charge automatiquement le fichier .env isGlobal: true rend les variables accessibles dans tous les modules
     PrismaModule,
     UsersModule,
     ArticlesModule,
@@ -28,6 +30,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     LikearticleModule,
     LikecommentModule,
     AuthModule,
+    HashModule,
   ],
+  providers: [TokensServices],
 })
 export class AppModule {}

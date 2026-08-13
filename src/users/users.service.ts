@@ -1,29 +1,43 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Users } from 'prisma/generated/prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
-import * as bcrypt from 'bcrypt';
+import { HashService } from 'src/hash/hash.service';
+import { AuthenticatedUser } from 'src/common/utils/formatAuthUser.util';
 
+type UpdateUserData = {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  password?: string;
+};
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
-
+  constructor(
+    private prisma: PrismaService,
+    private hashservice: HashService,
+  ) {}
 
   async createUser(
     // COMMENTAIRE
     data: CreateUserDto,
     hashedPassword: string,
-  ): Promise<Omit<Users, "createdAt"| "updatedAt" | "password">> {
+  ): Promise<AuthenticatedUser> {
     return await this.prisma.users.create({
       data: { ...data, password: hashedPassword },
-      select: {id: true, firstName: true, email: true, lastName: true }
+      select: { id: true, firstName: true, email: true, lastName: true },
     });
   }
 
-  async findByEmail(email: string): Promise<Users | null> {
-    // On retourne soit un user soit null
-    return await this.prisma.users.findUnique({ where: { email } });
+  async findByEmailOrThrow(email: string): Promise<Users> {
+    // On trouve un user par mail ou null
+    return await this.prisma.users.findUniqueOrThrow({ where: { email } });
+  }
+
+  async findByIdOrThrow(id: number): Promise<Users> {
+    // On trouve un user par son id ou null
+    return await this.prisma.users.findUniqueOrThrow({ where: { id } });
   }
 
   async findAll(page = 1): Promise<Omit<Users, 'password'>[]> {
@@ -70,8 +84,24 @@ export class UsersService {
   }
 
   async update(id: number, body: UpdateUserDto): Promise<void> {
+    const { currentPassword, newPassword, ...fields } = body;
+
+    const dataToUpdate: UpdateUserData = { ...fields };
+
+    if (newPassword) {
+      if (!currentPassword) {
+        throw new BadRequestException("L'ancien mot de passe est recquis");
+      }
+      //Récupère le hash stocké en BDD du user
+      const user = await this.prisma.users.findUniqueOrThrow({ where: { id } });
+
+      //Vérifie l'ancien mdp
+      await this.hashservice.compareHashOrThrow(currentPassword, user.password);
+
+      dataToUpdate.password = await this.hashservice.hash(newPassword);
+    }
     // On modifie les champs qui ont changés
-    await this.prisma.users.update({ where: { id }, data: body });
+    await this.prisma.users.update({ where: { id }, data: dataToUpdate });
   }
 
   async remove(id: number): Promise<void> {

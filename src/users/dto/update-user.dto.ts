@@ -1,20 +1,24 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateUserDto {
+  @IsEmail()
+  @IsOptional()
+  email?: string;
 
   @IsString()
-  @IsNotEmpty()
-  email: string;
+  @IsOptional()
+  firstName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  password: string;
+  @IsOptional()
+  lastName?: string;
 
   @IsString()
-  @IsNotEmpty()
-  firstName: string;
+  @IsOptional()
+  currentPassword?: string; //ancien mdp pour vérification
 
   @IsString()
-  @IsNotEmpty()
-  lastName: string;
+  @IsOptional()
+  @MinLength(8)
+  newPassword?: string; //nouveau à hasher
 }

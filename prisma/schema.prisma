@@ -13,178 +13,225 @@ datasource db {
   provider = "mysql"
 }
 
+enum ManageRoleEnum {
+  Manager          @map("Manager")
+  communityManager @map("CM")
+}
+
+// Type de notification
+enum NotificationTypeEnum {
+  ARTICLE @map("article")
+  MATCH   @map("match")
+  COMMENT @map("comment")
+}
+
+enum TokenTypeEnum {
+  REFRESH
+  EMAIL
+}
+
 model Users {
-  id        Int    @id @default(autoincrement()) // Clé primaire auto-incrémentée
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt // Clé primaire auto-incrémentée
   email     String @unique @db.VarChar(50) // Email unique (max 50 caractères)
-  password  String @db.VarChar(255) // Mot de passe hashé @map(nom différent en DB)
+  password  String @map("password_hash") @db.VarChar(255) // Mot de passe hashé
   firstName String @db.VarChar(50) // Prénom utilisateur (max 50 caractères)
   lastName  String @db.VarChar(50) // Nom utilisateur (max 50 caractères)
 
-  createdAt    DateTime      @default(now()) // Date de création automatique à l'instant T avec now()
-  updatedAt    DateTime      @updatedAt // Date mise à jour auto à chaque modification (nom différent dans la DB)
+  createdAt    DateTime      @default(now()) @map("created_at") // Date de création automatique
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") // Date de mise à jour automatique
   articles     Articles[]
   comments     Comments[]
   likeArticles LikeArticle[]
   likeComments LikeComment[]
+  likeClubs    LikeClub[]
   manages      Manages[]
   notifies     Notifies[]
+  tokens       Tokens[]
+  matches      Matches[]
+
+  @@map("users")
 }
 
 model Clubs {
-  id            Int    @id @default(autoincrement())
+  id            Int    @id @default(autoincrement()) @db.UnsignedInt
   name          String @unique @db.VarChar(50) // @unique (nom unique)
   logo          String @db.VarChar(255) // Photo du club
-  acronyme      String @db.VarChar(5) // Acronyme du club
-  creationDate  String @db.VarChar(5) // Année de création du club
-  presidentName String @db.VarChar(50) // Président du club
-  trainerName   String @db.VarChar(50) // Entraineur
-  rna           String @db.VarChar(11) // Numéro du club
+  acronyme      String @map("acronym") @db.VarChar(5) // Acronyme du club
+  creationDate  String @map("creation_date") @db.VarChar(5) // Année de création du club
+  presidentName String @map("president_name") @db.VarChar(50) // Président du club
+  trainerName   String @map("trainer_name") @db.VarChar(50) // Entraineur
+  rna           String @unique @map("RNA") @db.VarChar(11) // Numéro du club
 
-  // tableau des clubs pour article
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   articles    Articles[]
   matchesHome Matches[]  @relation("MatchesHome")
   matchesAway Matches[]  @relation("MatchesAway")
+  likeClubs   LikeClub[]
   manages     Manages[]
-}
 
-enum ManageRoleEnum {
-  Manager
-  CM
+  @@map("club")
 }
 
 model Manages {
-  userId    Int            @map("user_id")
-  clubId    Int            @map("club_id")
+  userId    Int            @map("user_id") @db.UnsignedInt
+  clubId    Int            @map("club_id") @db.UnsignedInt
   role      ManageRoleEnum
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at")
 
-  users Users @relation(fields: [userId], references: [id])
-  clubs Clubs @relation(fields: [clubId], references: [id])
+  users Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clubs Clubs @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   @@id([userId, clubId])
-}
-
-//Type de notification
-enum NotificationTypeEnum {
-  ARTICLE
-  MATCH
-  COMMENT
+  @@map("manages")
 }
 
 model Notifications {
-  id           Int                  @id @default(autoincrement())
+  id           Int                  @id @default(autoincrement()) @db.UnsignedInt
   text         String               @db.Text
-  relationType NotificationTypeEnum //// Type de l'objet lié à la notification (article, match ou commentaire)
-  relationId   Int // ID de l'objet lié (ex: id de l'article, du match ou du commentaire)
-  metadata     Json // Données supplémentaires au format JSON (libre, ex: infos user, action, etc.)
+  relationType NotificationTypeEnum @map("relation_type") // Type de l'objet lié à la notification
+  relationId   Int                  @map("relation_id") @db.UnsignedInt // ID de l'objet lié
+  metadata     Json // Données supplémentaires au format JSON
 
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
   notifies  Notifies[]
+
+  @@map("notification")
 }
 
 model Notifies {
-  userId         Int
-  notificationId Int
+  userId         Int @map("user_id") @db.UnsignedInt
+  notificationId Int @map("notification_id") @db.UnsignedInt
 
-  isRead Boolean @default(false)
+  isRead Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  createdAt DateTime @default(now())
-
-  // Relations
-  users         Users         @relation(fields: [userId], references: [id])
+  users         Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
   notifications Notifications @relation(fields: [notificationId], references: [id])
 
   @@id([userId, notificationId])
+  @@map("notifies")
 }
 
 model Articles {
-  id          Int    @id @default(autoincrement())
-  clubId      Int
-  userId      Int
+  id          Int    @id @default(autoincrement()) @db.UnsignedInt
+  clubId      Int    @map("club_id") @db.UnsignedInt
+  userId      Int    @map("user_id") @db.UnsignedInt
   title       String @db.VarChar(50)
   description String @db.Text
   image       String @db.VarChar(255)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   // Foreign Key avec users / clubs
   clubs Clubs @relation(fields: [clubId], references: [id])
-  users Users @relation(fields: [userId], references: [id])
+  users Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Tableau Comments
   articleComment Comments[]
   likeArticles   LikeArticle[]
 
-  // Index pour article
-  @@index([userId])
-  @@index([userId, clubId])
+  @@index([clubId, userId], map: "article_index_0")
+  @@index([userId], map: "idx_article_user")
+  @@map("article")
 }
 
 model Comments {
-  id        Int    @id @default(autoincrement())
-  userId    Int
-  articleId Int
+  id        Int    @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int    @map("user_id") @db.UnsignedInt
+  articleId Int    @map("article_id") @db.UnsignedInt
   text      String @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  //Foreign key users / articles
+  // Foreign key users / articles
   users        Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
   articles     Articles      @relation(fields: [articleId], references: [id], onDelete: Cascade)
   likeComments LikeComment[]
 
-  @@index([userId, articleId])
+  @@index([userId, articleId], map: "comments_index_0")
+  @@index([articleId], map: "idx_comments_article")
+  @@map("comments")
 }
 
 model Matches {
-  id            Int      @id @default(autoincrement())
-  clubHomeId    Int
-  clubAwayId    Int
-  startDate     DateTime
-  endDate       DateTime
-  matchAddress  String   @db.VarChar(255)
-  scoreTeamHome Int
-  scoreTeamAway Int
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int      @map("user_id") @db.UnsignedInt
+  clubHomeId    Int      @map("club_home_id") @db.UnsignedInt
+  clubAwayId    Int      @map("club_away_id") @db.UnsignedInt
+  startDate     DateTime @map("start_date")
+  endDate       DateTime @map("end_date")
+  matchAddress  String   @map("match_address") @db.VarChar(255)
+  scoreTeamHome Int?     @map("score_team_home") @db.UnsignedInt
+  scoreTeamAway Int?     @map("score_team_away") @db.UnsignedInt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  users    Users @relation(fields: [userId], references: [id], onDelete: Cascade)
   clubHome Clubs @relation("MatchesHome", fields: [clubHomeId], references: [id])
   clubAway Clubs @relation("MatchesAway", fields: [clubAwayId], references: [id])
 
-  @@index([clubHomeId, clubAwayId])
+  @@index([clubHomeId, clubAwayId], map: "matches_index_0")
+  @@index([userId], map: "idx_matches_user")
+  @@map("matches")
 }
 
 model LikeArticle {
-  userId    Int
-  articleId Int
+  userId    Int      @map("user_id") @db.UnsignedInt
+  articleId Int      @map("article_id") @db.UnsignedInt
+  createdAt DateTime @default(now()) @map("created_at")
 
-  createdAt DateTime @default(now())
-
-  // Relations
   users    Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   articles Articles @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
-  // Clé primaire composée
   @@id([userId, articleId])
+  @@map("like_article")
 }
 
 model LikeComment {
-  userId    Int
-  commentId Int
-
-  createdAt DateTime @default(now())
+  userId    Int      @map("user_id") @db.UnsignedInt
+  commentId Int      @map("comment_id") @db.UnsignedInt
+  createdAt DateTime @default(now()) @map("created_at")
 
   users    Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
   comments Comments @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@id([userId, commentId])
+  @@map("like_comment")
+}
+
+model LikeClub {
+  userId    Int      @map("user_id") @db.UnsignedInt
+  clubId    Int      @map("club_id") @db.UnsignedInt
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clubs Clubs @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@id([userId, clubId])
+  @@map("like_club")
+}
+
+model Tokens {
+  id        Int           @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int           @map("user_id") @db.UnsignedInt
+  tokenType TokenTypeEnum @map("token_type")
+  token     String        @unique @db.VarChar(255)
+  userAgent String?       @map("user_agent") @db.VarChar(255)
+  expiresAt DateTime      @map("expires_at")
+  revokedAt DateTime?     @map("revoked_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  users Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "idx_tokens_user")
+  @@index([tokenType], map: "idx_tokens_type")
+  @@map("tokens")
 }

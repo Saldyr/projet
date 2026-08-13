@@ -13,6 +13,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { isEmptyBody } from 'src/common/utils/is-empty-body.util';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
@@ -41,20 +42,11 @@ export class ArticlesController {
     try {
       return await this.articlesService.findOne(id);
     } catch (error) {
-      throw new NotFoundException();
+      throw new NotFoundException('Article introuvable');
     }
   }
 
-  // @Get(':clubId')
-  // async findByClubs(
-  //   @Param('clubId', ParseIntPipe) id: number,
-  // ): Promise<Omit<Articles, 'userId'>> {
-  //   try {
-  //     return await this.articlesService.findByClub(id);
-  //   } catch (error) {
-  //     throw new NotFoundException();
-  //   }
-  // }
+
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch(':id')
@@ -62,27 +54,27 @@ export class ArticlesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateArticleDto,
   ): Promise<void> {
-    // Vérifie si le body est vide ou invalide
-    // (évite de faire une update sans données)
-    if (!body || JSON.stringify(body).trim() === '{}')
-      throw new BadRequestException();
-    // Vérifie si l'article existe en base de données
-    // sinon on renvoie une erreur 404
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
+
+    // Vérifie que l'article existe avant modification.
     if (!(await this.articlesService.countOneById(id))) {
-      throw new NotFoundException();
+      throw new NotFoundException('Article introuvable');
     }
-    // Mise à jour de l'article avec les nouvelles données reçues
+
+    // Met à jour l'article avec les nouvelles données reçues.
     await this.articlesService.update(id, body);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    // Vérifie si l'article existe avant suppression
-    // Si non → on renvoie une erreur 404 (Not Found)
+    // Vérifie que l'article existe avant suppression.
     if (!(await this.articlesService.countOneById(id)))
-      throw new NotFoundException();
-    // Suppression de l'article en base de données
+      throw new NotFoundException('Article introuvable');
+
+    // Supprime l'article en base de données.
     await this.articlesService.remove(id);
   }
 }

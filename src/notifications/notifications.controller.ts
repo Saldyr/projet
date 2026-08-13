@@ -12,6 +12,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { isEmptyBody } from 'src/common/utils/is-empty-body.util';
 import { NotificationsService } from './notifications.service';
 import { Notifications } from 'prisma/generated/prisma/client';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -38,7 +39,7 @@ export class NotificationsController {
     try {
       return await this.notificationsService.findOne(id);
     } catch (error) {
-      throw new NotFoundException();
+      throw new NotFoundException('Notification introuvable');
     }
   }
 
@@ -48,8 +49,9 @@ export class NotificationsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateNotificationDto,
   ): Promise<void> {
-    if (!body || JSON.stringify(body).trim() === '{}')
-      throw new BadRequestException();
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
 
     await this.notificationsService.update(id, body);
   }

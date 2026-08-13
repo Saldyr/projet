@@ -13,6 +13,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { isEmptyBody } from 'src/common/utils/is-empty-body.util';
 import { CommentsService } from './comments.service';
 import { Comments } from 'prisma/generated/prisma/client';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -41,7 +42,7 @@ export class CommentsController {
     try {
       return await this.commentsService.findOne(id);
     } catch (error) {
-      throw new NotFoundException();
+      throw new NotFoundException('Commentaire introuvable');
     }
   }
 
@@ -51,29 +52,27 @@ export class CommentsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateCommentDto,
   ): Promise<void> {
+    // Refuse les mises à jour sans données.
+    if (isEmptyBody(body))
+      throw new BadRequestException('Le body de mise à jour est vide');
 
-    // Vérifie si le body est vide
-    if (!body || JSON.stringify(body).trim() === '{}')
-      throw new BadRequestException();
-
-    // Vérifie si le commentaire existe
+    // Vérifie que le commentaire existe avant modification.
     if (!(await this.commentsService.countOneById(id))) {
-      throw new NotFoundException();
+      throw new NotFoundException('Commentaire introuvable');
     }
 
-    // Mise à jour du commentaire
+    // Met à jour le commentaire.
     await this.commentsService.update(id, body);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-
-    // Vérifie si le commentaire existe
+    // Vérifie que le commentaire existe avant suppression.
     if (!(await this.commentsService.countOneById(id)))
-      throw new NotFoundException();
+      throw new NotFoundException('Commentaire introuvable');
 
-    // Suppression du commentaire
+    // Supprime le commentaire.
     await this.commentsService.remove(id);
   }
 }
