@@ -1,0 +1,10 @@
+export { ProfileFooter } from "./profile/ProfileFooter.tsx";
+export { ProfileHeader } from "./profile/ProfileHeader.tsx";
+export { ProfileSetHeader } from "./profileSettings/ProfileSetHeader.tsx";
+export { ProfileSetZone } from "./profileSettings/ProfileSetZone.tsx";
+export { ProfileSetAvatar } from "./profileSettings/ProfileSetAvatar.tsx"
+export { ProfileSetForm } from "./profileSettings/ProfileSetForm.tsx"
+export { ProfileSetCol2 } from "./profileSettings/ProfileSetCol2.tsx"
+export { ProfileStats } from "./profile/ProfileStats.tsx";
+export { ProfileTabs } from "./profile/ProfileTabs.tsx";
+export { Avatar } from "./Avatar.tsx"

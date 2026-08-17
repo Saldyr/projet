@@ -1,0 +1,41 @@
+# ===== STAGE 1 : BUILD =====
+# Premier stage utilisé pour construire l'application React
+FROM  node:24-alpine3.22 AS build
+
+# Définit le dossier de travail dans le conteneur
+WORKDIR /app
+
+# Copie package.json
+# Contient les dépendances et scripts du projet React
+COPY package*.json ./
+
+# Installe les dépendances du projet
+# npm ci est plus rapide et plus stable pour Docker
+RUN npm ci 
+
+# Copie tous les fichiers du projet React dans le conteneur (1er . Racine du projet copie code source du dossier FRONT) 
+#(2ème . copie dans le répertoire du WORKDIR)
+COPY . .
+
+# Compile l'application React
+# Génère les fichiers statiques optimisés dans le dossier dist
+RUN npm run build --omit=dev
+
+# ===== STAGE 2 : RUNTIME =====
+# Deuxième stage utilisé pour servir l'application React
+# Nginx est utilisé car il est très performant pour les fichiers statiques
+FROM nginx:alpine
+
+# Copie uniquement le build React généré dans le stage précédent
+# Les fichiers sont placés dans le dossier web de Nginx
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Informe Docker que le conteneur écoute sur le port 80
+# Port utilisé par les serveurs web HTTP
+EXPOSE 80
+
+# Commande exécutée au démarrage du conteneur
+# Lance Nginx au premier plan pour garder le conteneur actif
+# "daemon off" empêche Nginx de se lancer en arrière-plan
+# Sinon Docker penserait que le processus est terminé et arrêterait le conteneur
+CMD ["nginx", "-g", "daemon off;"]
